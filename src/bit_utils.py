@@ -20,19 +20,38 @@ def concat_bits(parts: List[Tuple[int, int]]) -> int:
         res = (res << length) | (val & mask)
     return res
 
+# def rot_left(val: int, bit_length: int, shift: int) -> int:
+#     """
+#     Performs circular left shift on an arbitrary-length integer bit string.
+#     """
+#     mask = (1 << bit_length) - 1
+#     shift %= bit_length
+#     val &= mask
+#     return ((val << shift) | (val >> (bit_length - shift))) & mask
+
+# def rot_right(val: int, bit_length: int, shift: int) -> int:
+#     """
+#     Performs circular right shift on an arbitrary-length integer bit string.
+#     """
+#     mask = (1 << bit_length) - 1
+#     shift %= bit_length
+#     val &= mask
+#     return ((val >> shift) | (val << (bit_length - shift))) & mask
+
 def rot_left(val: int, bit_length: int, shift: int) -> int:
-    """
-    Performs circular left shift on an arbitrary-length integer bit string.
-    """
+    """Performs circular left shift on an arbitrary-length integer bit string."""
+    if bit_length == 0:
+        return val
     mask = (1 << bit_length) - 1
     shift %= bit_length
     val &= mask
     return ((val << shift) | (val >> (bit_length - shift))) & mask
 
+
 def rot_right(val: int, bit_length: int, shift: int) -> int:
-    """
-    Performs circular right shift on an arbitrary-length integer bit string.
-    """
+    """Performs circular right shift on an arbitrary-length integer bit string."""
+    if bit_length == 0:
+        return val
     mask = (1 << bit_length) - 1
     shift %= bit_length
     val &= mask

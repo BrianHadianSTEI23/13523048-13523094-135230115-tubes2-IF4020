@@ -37,15 +37,57 @@ def _generate_sbox() -> Tuple[List[int], List[int]]:
 
 S_BOX, INV_S_BOX = _generate_sbox()
 
+# def sub_bytes(val: int, num_bits: int, inverse: bool = False) -> int:
+#     """Byte-wise non-linear substitution using standard S_BOX or INV_S_BOX."""
+#     table = INV_S_BOX if inverse else S_BOX
+#     num_bytes = (num_bits + 7) // 8
+#     val_bytes = int_to_bytes(val, num_bytes)
+#     substituted = bytes(table[b] for b in val_bytes)
+#     res = bytes_to_int(substituted)
+#     mask = (1 << num_bits) - 1
+#     return res & mask
+
+# def shift_rows(val: int, num_bits: int, inverse: bool = False) -> int:
+#     """Performs 4-row cyclical shift transformation on input bit string."""
+#     row_len = num_bits // 4
+#     if row_len == 0:
+#         return val
+    
+#     rows = [
+#         slice_bits_msb(val, num_bits, i * row_len, row_len)
+#         for i in range(4)
+#     ]
+    
+#     shifted_rows = [0] * 4
+#     for i in range(4):
+#         shift = i
+#         if inverse:
+#             shifted_rows[i] = rot_right(rows[i], row_len, shift)
+#         else:
+#             shifted_rows[i] = rot_left(rows[i], row_len, shift)
+            
+#     return concat_bits([(r, row_len) for r in shifted_rows])
+
 def sub_bytes(val: int, num_bits: int, inverse: bool = False) -> int:
     """Byte-wise non-linear substitution using standard S_BOX or INV_S_BOX."""
     table = INV_S_BOX if inverse else S_BOX
-    num_bytes = (num_bits + 7) // 8
-    val_bytes = int_to_bytes(val, num_bytes)
-    substituted = bytes(table[b] for b in val_bytes)
-    res = bytes_to_int(substituted)
-    mask = (1 << num_bits) - 1
-    return res & mask
+    
+    full_bytes = num_bits // 8
+    rem_bits = num_bits % 8
+    
+    full_mask = (1 << (full_bytes * 8)) - 1
+    lower_val = val & full_mask
+    rem_val = val >> (full_bytes * 8)
+    
+    if full_bytes > 0:
+        val_bytes = int_to_bytes(lower_val, full_bytes)
+        substituted = bytes(table[b] for b in val_bytes)
+        lower_res = bytes_to_int(substituted)
+    else:
+        lower_res = 0
+        
+    return (rem_val << (full_bytes * 8)) | lower_res
+
 
 def shift_rows(val: int, num_bits: int, inverse: bool = False) -> int:
     """Performs 4-row cyclical shift transformation on input bit string."""
@@ -53,8 +95,14 @@ def shift_rows(val: int, num_bits: int, inverse: bool = False) -> int:
     if row_len == 0:
         return val
     
+    rem_bits = num_bits % 4
+    main_bits = num_bits - rem_bits
+    
+    rem_val = val >> main_bits
+    lower_val = val & ((1 << main_bits) - 1)
+    
     rows = [
-        slice_bits_msb(val, num_bits, i * row_len, row_len)
+        slice_bits_msb(lower_val, main_bits, i * row_len, row_len)
         for i in range(4)
     ]
     
@@ -66,15 +114,8 @@ def shift_rows(val: int, num_bits: int, inverse: bool = False) -> int:
         else:
             shifted_rows[i] = rot_left(rows[i], row_len, shift)
             
-    return concat_bits([(r, row_len) for r in shifted_rows])
-
-# def mix_columns(val: int, num_bits: int) -> int:
-#     """Linear mixing matrix transformation over GF(2^num_bits)."""
-#     mask = (1 << num_bits) - 1
-#     p1 = rot_left(val, num_bits, 1)
-#     p2 = rot_left(val, num_bits, 3)
-#     p3 = rot_right(val, num_bits, 2)
-#     return (val ^ p1 ^ p2 ^ p3) & mask
+    shifted_lower = concat_bits([(r, row_len) for r in shifted_rows])
+    return (rem_val << main_bits) | shifted_lower
 
 def mix_columns(val: int, num_bits: int, inverse: bool = False) -> int:
     """Invertible linear bit-mixing transformation over GF(2^num_bits)."""
