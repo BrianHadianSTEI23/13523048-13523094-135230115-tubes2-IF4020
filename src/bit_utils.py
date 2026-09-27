@@ -24,8 +24,8 @@ def rot_left(val: int, bit_length: int, shift: int) -> int:
     """
     Performs circular left shift on an arbitrary-length integer bit string.
     """
-    shift %= bit_length
     mask = (1 << bit_length) - 1
+    shift %= bit_length
     val &= mask
     return ((val << shift) | (val >> (bit_length - shift))) & mask
 
@@ -33,8 +33,8 @@ def rot_right(val: int, bit_length: int, shift: int) -> int:
     """
     Performs circular right shift on an arbitrary-length integer bit string.
     """
-    shift %= bit_length
     mask = (1 << bit_length) - 1
+    shift %= bit_length
     val &= mask
     return ((val >> shift) | (val << (bit_length - shift))) & mask
 

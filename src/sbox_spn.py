@@ -68,13 +68,21 @@ def shift_rows(val: int, num_bits: int, inverse: bool = False) -> int:
             
     return concat_bits([(r, row_len) for r in shifted_rows])
 
-def mix_columns(val: int, num_bits: int) -> int:
-    """Linear mixing matrix transformation over GF(2^num_bits)."""
+# def mix_columns(val: int, num_bits: int) -> int:
+#     """Linear mixing matrix transformation over GF(2^num_bits)."""
+#     mask = (1 << num_bits) - 1
+#     p1 = rot_left(val, num_bits, 1)
+#     p2 = rot_left(val, num_bits, 3)
+#     p3 = rot_right(val, num_bits, 2)
+#     return (val ^ p1 ^ p2 ^ p3) & mask
+
+def mix_columns(val: int, num_bits: int, inverse: bool = False) -> int:
+    """Invertible linear bit-mixing transformation over GF(2^num_bits)."""
     mask = (1 << num_bits) - 1
-    p1 = rot_left(val, num_bits, 1)
-    p2 = rot_left(val, num_bits, 3)
-    p3 = rot_right(val, num_bits, 2)
-    return (val ^ p1 ^ p2 ^ p3) & mask
+    shift = 1
+    if inverse:
+        return rot_right(val, num_bits, shift) & mask
+    return rot_left(val, num_bits, shift) & mask
 
 def add_round_key(val: int, key: int) -> int:
     """Bitwise XOR with round key."""
