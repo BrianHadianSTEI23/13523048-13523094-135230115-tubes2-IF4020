@@ -48,17 +48,16 @@ class TestModule1(unittest.TestCase):
         self.assertEqual(rot_right(val, 8, 2), 0b00101100)
 
     def test_gf2_multiplication(self):
-        # GF(2^64) identity multiplication test
-        cfg64 = get_config(64)
-        a = 0xDEADBEEFCAFE1234
-        res = gf2_mul(a, 1, 64, cfg64.gf_poly_low)
+        # GF(2^8) multiplication is still used to construct the S-box.
+        a = 0x53
+        res = gf2_mul(a, 1, 8, 0x1D)
         self.assertEqual(a, res)
         
-        # Test GF(2^64) associative property: (a * b) in field
-        b = 0x0000000000000002
-        c = gf2_mul(a, b, 64, cfg64.gf_poly_low)
+        # A nonzero product remains within the configured bit width.
+        b = 2
+        c = gf2_mul(a, b, 8, 0x1D)
         self.assertNotEqual(c, 0)
-        self.assertLess(c, 1 << 64)
+        self.assertLess(c, 1 << 8)
 
 if __name__ == '__main__':
     unittest.main()

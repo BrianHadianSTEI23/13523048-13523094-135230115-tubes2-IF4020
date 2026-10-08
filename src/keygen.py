@@ -1,94 +1,57 @@
 from typing import List, Dict
 from config.params import BlockConfig, get_config
-from src.bit_utils import (
-    slice_bits_msb,
-    gf2_mul,
-)
-from src.sbox_spn import (
-    sbox_expand,
-    sbox_compress,
-)
+from src.bit_utils import diffuse_state_bits, rot_left
+from src.sbox_spn import sub_bytes
 
-def generate_key_step_phase_a(state: int, cfg: BlockConfig) -> int:
-    """
-    Phase A of KeyGen cycle[cite: 1]:
-    Left branch (L) -> S1-box (expand to 0.75*B)[cite: 1].
-    Right branch (R) -> S2-box (shrink to 0.25*B)[cite: 1].
-    Combine via GF(2^B) multiplication[cite: 1].
-    """
-    b_bits = cfg.block_bits
-    half_bits = cfg.half_bits
-    
-    # Split state into L (MSB) and R (LSB)
-    l_val = slice_bits_msb(state, b_bits, 0, half_bits)
-    r_val = slice_bits_msb(state, b_bits, half_bits, half_bits)
-    
-    # S1-box expansion and S2-box compression[cite: 1]
-    s1_out = sbox_expand(l_val, half_bits, cfg.s1_expand_bits)
-    s2_out = sbox_compress(r_val, half_bits, cfg.s2_shrink_bits)
-    
-    # GF Multiplication Modulo 2^B[cite: 1]
-    return gf2_mul(s1_out, s2_out, b_bits, cfg.gf_poly_low)
 
-def generate_key_step_phase_b(state: int, cfg: BlockConfig) -> int:
-    """
-    Phase B of KeyGen cycle[cite: 1]:
-    Left branch (L) -> S2-box (shrink to 0.25*B)[cite: 1].
-    Right branch (R) -> S1-box (expand to 0.75*B)[cite: 1].
-    Combine via GF(2^B) multiplication[cite: 1].
-    """
-    b_bits = cfg.block_bits
-    half_bits = cfg.half_bits
-    
-    # Split state into L (MSB) and R (LSB)
-    l_val = slice_bits_msb(state, b_bits, 0, half_bits)
-    r_val = slice_bits_msb(state, b_bits, half_bits, half_bits)
-    
-    # S2-box compression and S1-box expansion[cite: 1]
-    s2_out = sbox_compress(l_val, half_bits, cfg.s2_shrink_bits)
-    s1_out = sbox_expand(r_val, half_bits, cfg.s1_expand_bits)
-    
-    # GF Multiplication Modulo 2^B[cite: 1]
-    return gf2_mul(s2_out, s1_out, b_bits, cfg.gf_poly_low)
+def _round_constant(index: int, cfg: BlockConfig) -> int:
+    """Public B-bit constant, distinct over the supported first 20 rounds."""
+    byte_count = cfg.block_bits // 8
+    return int.from_bytes(
+        bytes((0x9D + index + 0x3D * position) & 0xFF for position in range(byte_count)),
+        "big",
+    )
+
+
+def _domain_subkey(round_key: int, cfg: BlockConfig, domain: int) -> int:
+    """Derive one working key for a Feistel call from the primary round key."""
+    if domain not in (2, 3, 4, 5):
+        raise ValueError("domain must be 2, 3, 4, or 5")
+    byte_count = cfg.block_bits // 8
+    domain_word = int.from_bytes(bytes([(0x35 * domain) & 0xFF]) * byte_count, "big")
+    return sub_bytes(rot_left(round_key, cfg.block_bits, 7 * domain) ^ domain_word, cfg.block_bits)
 
 def generate_keys(master_key: int, count: int, block_bits: int) -> List[int]:
-    """
-    Generates `count` B-bit round keys (Key_1, Key_2, ..., Key_count)[cite: 1]
-    from a master key using the alternating KeyGen pipeline[cite: 1].
-    """
+    """Generate ``count`` sequential primary B-bit round keys."""
     cfg = get_config(block_bits)
-    mask = (1 << block_bits) - 1
-    state = master_key & mask
+    limit = 1 << block_bits
+    if not isinstance(master_key, int) or isinstance(master_key, bool) or not 0 <= master_key < limit:
+        raise ValueError(f"master_key must be a {block_bits}-bit unsigned integer")
+    if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+        raise ValueError("count must be a non-negative integer")
+    state = master_key
     keys: List[int] = []
-    
-    for _ in range(count):
-        # Two alternating cycles per output key[cite: 1]
-        state = generate_key_step_phase_a(state, cfg)
-        state = generate_key_step_phase_b(state, cfg)
+    for index in range(count):
+        state = rot_left(state, block_bits, 11) ^ _round_constant(index, cfg)
+        state = sub_bytes(state, block_bits)
+        state = diffuse_state_bits(state, block_bits)
         keys.append(state)
-        
     return keys
 
 def derive_round_subkeys(master_key: int, num_rounds: int, block_bits: int) -> List[Dict[str, int]]:
-    """
-    Generates subkey sets for 20 cipher rounds.
-    Each round requires subkeys corresponding to Key1..Key5 in the Cipher specification[cite: 2].
-    Total generated key blocks = num_rounds * 5.
-    """
+    """Expose one primary round key and four domain-separated working keys."""
+    if not isinstance(num_rounds, int) or isinstance(num_rounds, bool) or num_rounds < 1:
+        raise ValueError("num_rounds must be a positive integer")
     cfg = get_config(block_bits)
-    total_keys_needed = num_rounds * 5
-    raw_keys = generate_keys(master_key, total_keys_needed, block_bits)
-    
-    round_subkeys = []
-    for r in range(num_rounds):
-        idx = r * 5
-        subkeys = {
-            'Key1': raw_keys[idx],
-            'Key2': raw_keys[idx + 1],
-            'Key3': raw_keys[idx + 2],
-            'Key4': raw_keys[idx + 3],
-            'Key5': raw_keys[idx + 4],
-        }
-        round_subkeys.append(subkeys)
-        
-    return round_subkeys
+    round_keys = generate_keys(master_key, num_rounds, block_bits)
+    result: List[Dict[str, int]] = []
+    for round_key in round_keys:
+        result.append({
+            "RoundKey": round_key,
+            "Key1": round_key,
+            "Key2": _domain_subkey(round_key, cfg, 2),
+            "Key3": _domain_subkey(round_key, cfg, 3),
+            "Key4": _domain_subkey(round_key, cfg, 4),
+            "Key5": _domain_subkey(round_key, cfg, 5),
+        })
+    return result

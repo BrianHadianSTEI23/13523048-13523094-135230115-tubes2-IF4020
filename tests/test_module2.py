@@ -2,11 +2,8 @@ import unittest
 from config.params import BLOCK_CONFIGS
 from src.sbox_spn import (
     sub_bytes,
-    shift_rows,
-    mix_columns,
     add_round_key,
     sbox_compress,
-    sbox_expand,
     custom_sha256,
 )
 
@@ -18,26 +15,12 @@ class TestModule2(unittest.TestCase):
         restored = sub_bytes(subbed, 32, inverse=True)
         self.assertEqual(val, restored)
 
-    def test_shift_rows_invertibility(self):
-        for b_bits in [64, 96, 128, 192]:
-            val = (1 << b_bits) - 0x123456789
-            shifted = shift_rows(val, b_bits, inverse=False)
-            restored = shift_rows(shifted, b_bits, inverse=True)
-            self.assertEqual(val, restored)
-
-    def test_sbox_compress_and_expand_bounds(self):
+    def test_sbox_compress_bounds(self):
         for b_bits, cfg in BLOCK_CONFIGS.items():
-            # Test S1/S2 Compression
-            in_bits, out_bits = cfg.round_s_compress
+            in_bits, out_bits = cfg.merged_l_bits, cfg.outer_bits
             val = (1 << in_bits) - 1
             compressed = sbox_compress(val, in_bits, out_bits)
             self.assertLess(compressed, 1 << out_bits)
-
-            # Test S3/S4 Expansion
-            in_bits, out_bits = cfg.round_s_expand
-            val = (1 << in_bits) - 1
-            expanded = sbox_expand(val, in_bits, out_bits)
-            self.assertLess(expanded, 1 << out_bits)
 
     def test_custom_sha256_key_dependency(self):
         data_val = 0x1234  # 16-bit value (fits in data_bits = 16)
