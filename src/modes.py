@@ -4,6 +4,27 @@ from src.bit_utils import bytes_to_int, int_to_bytes
 from src.cipher_core import encrypt_block, decrypt_block
 
 
+def _validate_iv(iv: bytes, block_bytes: int) -> None:
+    if not isinstance(iv, bytes) or len(iv) != block_bytes:
+        raise ValueError(f"IV/counter must be exactly {block_bytes} bytes")
+
+
+def _validate_file_paths(input_filepath: str, output_filepath: str) -> None:
+    input_path = os.path.normcase(os.path.realpath(input_filepath))
+    output_path = os.path.normcase(os.path.realpath(output_filepath))
+    if input_path == output_path or (
+        os.path.exists(input_filepath)
+        and os.path.exists(output_filepath)
+        and os.path.samefile(input_filepath, output_filepath)
+    ):
+        raise ValueError("input and output paths must be different")
+
+
+def _validate_padded_ciphertext(ciphertext: bytes, block_bytes: int) -> None:
+    if not ciphertext or len(ciphertext) % block_bytes:
+        raise ValueError("ciphertext must be non-empty and block-aligned")
+
+
 def pkcs7_pad(data: bytes, block_size: int) -> bytes:
     """Pads byte data to a multiple of block_size using PKCS#7 standard."""
     pad_len = block_size - (len(data) % block_size)
@@ -25,7 +46,7 @@ def pkcs7_unpad(data: bytes, block_size: int) -> bytes:
 # --- Modes of Operation ---
 
 def encrypt_ecb(
-    plaintext: bytes, master_key: int, block_bits: int = 64, num_rounds: int = 20
+    plaintext: bytes, master_key: int, block_bits: int = 64, num_rounds: int = 16
 ) -> bytes:
     """Electronic Codebook (ECB) Mode Encryption."""
     block_bytes = block_bits // 8
@@ -41,10 +62,11 @@ def encrypt_ecb(
 
 
 def decrypt_ecb(
-    ciphertext: bytes, master_key: int, block_bits: int = 64, num_rounds: int = 20
+    ciphertext: bytes, master_key: int, block_bits: int = 64, num_rounds: int = 16
 ) -> bytes:
     """Electronic Codebook (ECB) Mode Decryption."""
     block_bytes = block_bits // 8
+    _validate_padded_ciphertext(ciphertext, block_bytes)
     plaintext = bytearray()
     
     for i in range(0, len(ciphertext), block_bytes):
@@ -56,10 +78,11 @@ def decrypt_ecb(
 
 
 def encrypt_cbc(
-    plaintext: bytes, master_key: int, iv: bytes, block_bits: int = 64, num_rounds: int = 20
+    plaintext: bytes, master_key: int, iv: bytes, block_bits: int = 64, num_rounds: int = 16
 ) -> bytes:
     """Cipher Block Chaining (CBC) Mode Encryption."""
     block_bytes = block_bits // 8
+    _validate_iv(iv, block_bytes)
     padded = pkcs7_pad(plaintext, block_bytes)
     ciphertext = bytearray()
     prev_block = bytes_to_int(iv)
@@ -75,10 +98,12 @@ def encrypt_cbc(
 
 
 def decrypt_cbc(
-    ciphertext: bytes, master_key: int, iv: bytes, block_bits: int = 64, num_rounds: int = 20
+    ciphertext: bytes, master_key: int, iv: bytes, block_bits: int = 64, num_rounds: int = 16
 ) -> bytes:
     """Cipher Block Chaining (CBC) Mode Decryption."""
     block_bytes = block_bits // 8
+    _validate_iv(iv, block_bytes)
+    _validate_padded_ciphertext(ciphertext, block_bytes)
     plaintext = bytearray()
     prev_block = bytes_to_int(iv)
     
@@ -93,10 +118,11 @@ def decrypt_cbc(
 
 
 def encrypt_cfb(
-    plaintext: bytes, master_key: int, iv: bytes, block_bits: int = 64, num_rounds: int = 20
+    plaintext: bytes, master_key: int, iv: bytes, block_bits: int = 64, num_rounds: int = 16
 ) -> bytes:
     """Cipher Feedback (CFB) Mode Encryption."""
     block_bytes = block_bits // 8
+    _validate_iv(iv, block_bytes)
     ciphertext = bytearray()
     shift_reg = bytes_to_int(iv)
     
@@ -113,10 +139,11 @@ def encrypt_cfb(
 
 
 def decrypt_cfb(
-    ciphertext: bytes, master_key: int, iv: bytes, block_bits: int = 64, num_rounds: int = 20
+    ciphertext: bytes, master_key: int, iv: bytes, block_bits: int = 64, num_rounds: int = 16
 ) -> bytes:
     """Cipher Feedback (CFB) Mode Decryption."""
     block_bytes = block_bits // 8
+    _validate_iv(iv, block_bytes)
     plaintext = bytearray()
     shift_reg = bytes_to_int(iv)
     
@@ -133,10 +160,11 @@ def decrypt_cfb(
 
 
 def encrypt_ofb(
-    plaintext: bytes, master_key: int, iv: bytes, block_bits: int = 64, num_rounds: int = 20
+    plaintext: bytes, master_key: int, iv: bytes, block_bits: int = 64, num_rounds: int = 16
 ) -> bytes:
     """Output Feedback (OFB) Mode Encryption."""
     block_bytes = block_bits // 8
+    _validate_iv(iv, block_bytes)
     ciphertext = bytearray()
     shift_reg = bytes_to_int(iv)
     
@@ -151,25 +179,28 @@ def encrypt_ofb(
 
 
 def decrypt_ofb(
-    ciphertext: bytes, master_key: int, iv: bytes, block_bits: int = 64, num_rounds: int = 20
+    ciphertext: bytes, master_key: int, iv: bytes, block_bits: int = 64, num_rounds: int = 16
 ) -> bytes:
     """Output Feedback (OFB) Mode Decryption."""
     return encrypt_ofb(ciphertext, master_key, iv, block_bits, num_rounds)
 
 
 def encrypt_ctr(
-    plaintext: bytes, master_key: int, nonce: bytes, block_bits: int = 64, num_rounds: int = 20
+    plaintext: bytes, master_key: int, nonce: bytes, block_bits: int = 64, num_rounds: int = 16
 ) -> bytes:
     """Counter (CTR) Mode Encryption."""
     block_bytes = block_bits // 8
+    _validate_iv(nonce, block_bytes)
     ciphertext = bytearray()
     nonce_int = bytes_to_int(nonce)
-    mask = (1 << block_bits) - 1
+    block_count = (len(plaintext) + block_bytes - 1) // block_bytes
+    if block_count and nonce_int + block_count - 1 >= 1 << block_bits:
+        raise ValueError("CTR counter would wrap")
     counter = 0
     
     for i in range(0, len(plaintext), block_bytes):
         chunk = plaintext[i : i + block_bytes]
-        ctr_val = (nonce_int + counter) & mask
+        ctr_val = nonce_int + counter
         keystream_int = encrypt_block(ctr_val, master_key, 0, block_bits, num_rounds)
         keystream_bytes = int_to_bytes(keystream_int, block_bytes)
         c_chunk = bytes(p ^ k for p, k in zip(chunk, keystream_bytes[: len(chunk)]))
@@ -180,7 +211,7 @@ def encrypt_ctr(
 
 
 def decrypt_ctr(
-    ciphertext: bytes, master_key: int, nonce: bytes, block_bits: int = 64, num_rounds: int = 20
+    ciphertext: bytes, master_key: int, nonce: bytes, block_bits: int = 64, num_rounds: int = 16
 ) -> bytes:
     """Counter (CTR) Mode Decryption."""
     return encrypt_ctr(ciphertext, master_key, nonce, block_bits, num_rounds)
@@ -195,12 +226,12 @@ def encrypt_file(
     mode: str = "CBC",
     block_bits: int = 64,
     iv: Optional[bytes] = None,
-    num_rounds: int = 20,
+    num_rounds: int = 16,
 ) -> None:
     """Encrypts a file and writes the ciphertext to output_filepath."""
-    block_bytes = block_bits // 8
-    if mode.upper() in ["CBC", "CFB", "OFB", "CTR"] and iv is None:
-        iv = os.urandom(block_bytes)
+    _validate_file_paths(input_filepath, output_filepath)
+    if mode.upper() in ("CBC", "CFB", "OFB", "CTR"):
+        _validate_iv(iv, block_bits // 8)
 
     with open(input_filepath, "rb") as f:
         plaintext = f.read()
@@ -230,9 +261,12 @@ def decrypt_file(
     mode: str = "CBC",
     block_bits: int = 64,
     iv: Optional[bytes] = None,
-    num_rounds: int = 20,
+    num_rounds: int = 16,
 ) -> None:
     """Decrypts a file and writes the plaintext to output_filepath."""
+    _validate_file_paths(input_filepath, output_filepath)
+    if mode.upper() in ("CBC", "CFB", "OFB", "CTR"):
+        _validate_iv(iv, block_bits // 8)
     with open(input_filepath, "rb") as f:
         ciphertext = f.read()
 
