@@ -15,7 +15,7 @@ def analyze_avalanche_plaintext(
     iv: int = 0,
     bit_index: int = 0,
     block_bits: int = 64,
-    num_rounds: int = 20,
+    num_rounds: int = 16,
 ) -> Dict[str, Any]:
     """Flips 1 bit in plaintext and measures the bit changes in ciphertext.
 
@@ -56,7 +56,7 @@ def analyze_avalanche_key(
     iv: int = 0,
     bit_index: int = 0,
     block_bits: int = 64,
-    num_rounds: int = 20,
+    num_rounds: int = 16,
 ) -> Dict[str, Any]:
     """Flips 1 bit in key and measures the bit changes in ciphertext.
 
