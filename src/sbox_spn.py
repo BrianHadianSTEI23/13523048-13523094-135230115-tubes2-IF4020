@@ -1,9 +1,12 @@
+import ctypes
+import os
 import struct
+import sys
+from functools import lru_cache
+from pathlib import Path
 from typing import List, Tuple
 from src.bit_utils import concat_bits, rot_left, rot_right, gf2_mul, bytes_to_int, int_to_bytes
 
-# Oatside's fixed 8-bit table is generated once, then used by table lookup.
-# The field polynomial is x^8 + x^4 + x^3 + x^2 + 1 (0x11D).
 def _gf8_inverse(value: int) -> int:
     if value == 0:
         return 0
@@ -77,6 +80,44 @@ def sbox_compress(val: int, in_bits: int, out_bits: int) -> int:
         curr_in -= chunk_bits
     return res & mask_out
 
+@lru_cache(maxsize=4096)
+def _sha_key_words(round_key: int, key_bits: int) -> Tuple[int, ...]:
+    key_bytes = int_to_bytes(round_key, (key_bits + 7) // 8)
+    words = []
+    for i in range(64):
+        w = 0
+        for b in key_bytes + i.to_bytes(2, byteorder='big'):
+            w = (w * 31 + S_BOX[(b + i) % 256]) & 0xFFFFFFFF
+        words.append(w)
+    return tuple(words)
+
+
+def _load_native():
+    if os.environ.get("OATSIDE_NO_NATIVE"):
+        return None
+    name = (
+        "oatside_sha.dll" if sys.platform.startswith("win")
+        else "liboatside_sha.dylib" if sys.platform == "darwin"
+        else "liboatside_sha.so"
+    )
+    path = Path(__file__).resolve().parent / "native" / name
+    try:
+        lib = ctypes.CDLL(str(path))
+        lib.oatside_compress.argtypes = [ctypes.c_char_p, ctypes.c_void_p, ctypes.c_char_p]
+        lib.oatside_compress.restype = None
+        return lib.oatside_compress
+    except (OSError, AttributeError):
+        return None
+
+
+_NATIVE_COMPRESS = _load_native()
+
+
+@lru_cache(maxsize=4096)
+def _native_key_words(round_key: int, key_bits: int):
+    return (ctypes.c_uint32 * 64)(*_sha_key_words(round_key, key_bits))
+
+
 def custom_sha256(
     data_val: int,
     data_bits: int,
@@ -84,11 +125,6 @@ def custom_sha256(
     key_bits: int,
     output_bits: int | None = None,
 ) -> int:
-    """
-    Customized SHA-256 compression function.
-    Key scheduling constants K_t are dynamically replaced with key schedule
-    words derived directly from round_key for each cycle/part.
-    """
 
     if output_bits is None:
         output_bits = data_bits
@@ -99,15 +135,8 @@ def custom_sha256(
     data_val &= (1 << data_bits) - 1
     round_key &= (1 << key_bits) - 1
 
-    # 1. Derive 64 32-bit K_t round keys from round_key for this specific cycle/part
-    k_custom = []
-    key_bytes = int_to_bytes(round_key, (key_bits + 7) // 8)
-    for i in range(64):
-        seed = key_bytes + i.to_bytes(2, byteorder='big')
-        w = 0
-        for b in seed:
-            w = (w * 31 + S_BOX[(b + i) % 256]) & 0xFFFFFFFF
-        k_custom.append(w)
+    # 1. K_t words derived from round_key (cached: the same keys serve every block)
+    k_custom = _sha_key_words(round_key, key_bits)
 
     # 2. Convert data_val into 512-bit message block (padded)
     msg_bytes = int_to_bytes(data_val, (data_bits + 7) // 8)
@@ -116,15 +145,21 @@ def custom_sha256(
         block[i] = msg_bytes[i]
     block[56:64] = (data_bits).to_bytes(8, byteorder='big')
 
+    if _NATIVE_COMPRESS is not None:
+        out = ctypes.create_string_buffer(32)
+        _NATIVE_COMPRESS(bytes(block), _native_key_words(round_key, key_bits), out)
+        return (int.from_bytes(out.raw, "big") >> (256 - output_bits)) & ((1 << output_bits) - 1)
+
     # 3. Message schedule W_0 ... W_15 expanded to W_63
-    w_sched = [0] * 64
-    for t in range(16):
-        w_sched[t] = struct.unpack(">I", block[t*4:(t+1)*4])[0]
-    
+    # Rotations are written inline; this function dominates the cipher's runtime.
+    m = 0xFFFFFFFF
+    w_sched = list(struct.unpack(">16I", block)) + [0] * 48
     for t in range(16, 64):
-        s0 = (rot_right(w_sched[t-15], 32, 7) ^ rot_right(w_sched[t-15], 32, 18) ^ (w_sched[t-15] >> 3)) & 0xFFFFFFFF
-        s1 = (rot_right(w_sched[t-2], 32, 17) ^ rot_right(w_sched[t-2], 32, 19) ^ (w_sched[t-2] >> 10)) & 0xFFFFFFFF
-        w_sched[t] = (w_sched[t-16] + s0 + w_sched[t-7] + s1) & 0xFFFFFFFF
+        x = w_sched[t-15]
+        y = w_sched[t-2]
+        s0 = (((x >> 7) | (x << 25)) ^ ((x >> 18) | (x << 14)) ^ (x >> 3)) & m
+        s1 = (((y >> 17) | (y << 15)) ^ ((y >> 19) | (y << 13)) ^ (y >> 10)) & m
+        w_sched[t] = (w_sched[t-16] + s0 + w_sched[t-7] + s1) & m
 
     # 4. Initial Hash Values
     a, b, c, d, e, f, g, h = (
@@ -134,21 +169,21 @@ def custom_sha256(
 
     # 5. 64-Round Compression Loop with swapped K_custom constants
     for t in range(64):
-        S1 = (rot_right(e, 32, 6) ^ rot_right(e, 32, 11) ^ rot_right(e, 32, 25)) & 0xFFFFFFFF
-        ch = ((e & f) ^ ((~e) & g)) & 0xFFFFFFFF
-        temp1 = (h + S1 + ch + k_custom[t] + w_sched[t]) & 0xFFFFFFFF
-        S0 = (rot_right(a, 32, 2) ^ rot_right(a, 32, 13) ^ rot_right(a, 32, 22)) & 0xFFFFFFFF
-        maj = ((a & b) ^ (a & c) ^ (b & c)) & 0xFFFFFFFF
-        temp2 = (S0 + maj) & 0xFFFFFFFF
+        S1 = (((e >> 6) | (e << 26)) ^ ((e >> 11) | (e << 21)) ^ ((e >> 25) | (e << 7))) & m
+        ch = ((e & f) ^ ((~e) & g)) & m
+        temp1 = (h + S1 + ch + k_custom[t] + w_sched[t]) & m
+        S0 = (((a >> 2) | (a << 30)) ^ ((a >> 13) | (a << 19)) ^ ((a >> 22) | (a << 10))) & m
+        maj = ((a & b) ^ (a & c) ^ (b & c)) & m
+        temp2 = (S0 + maj) & m
 
         h = g
         g = f
         f = e
-        e = (d + temp1) & 0xFFFFFFFF
+        e = (d + temp1) & m
         d = c
         c = b
         b = a
-        a = (temp1 + temp2) & 0xFFFFFFFF
+        a = (temp1 + temp2) & m
 
     out_hash = concat_bits([
         (a, 32), (b, 32), (c, 32), (d, 32),

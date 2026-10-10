@@ -11,7 +11,7 @@ from src.sbox_spn import (
     sbox_compress,
     custom_sha256,
 )
-from src.keygen import derive_round_subkeys
+from src.keygen import _cached_round_subkeys
 
 def split_block_6_parts(block_val: int, cfg: BlockConfig) -> Tuple[int, int, int, int, int, int]:
     """Slice a B-bit block into the six configured branches."""
@@ -154,7 +154,7 @@ def encrypt_block(plaintext: int, master_key: int, iv: int, block_bits: int, num
     """Encrypt one fixed-width block with the oatside round function."""
     cfg = get_config(block_bits)
     _validate_block_inputs(plaintext, master_key, iv, cfg, num_rounds)
-    round_subkeys = derive_round_subkeys(master_key, num_rounds, block_bits)
+    round_subkeys = _cached_round_subkeys(master_key, num_rounds, block_bits)
     
     # Legacy core argument iv acts as input whitening; modes pass zero here.
     initial_val = plaintext ^ iv
@@ -174,7 +174,7 @@ def decrypt_block(ciphertext: int, master_key: int, iv: int, block_bits: int, nu
     """Decrypt a block by reversing global diffusion and each local round."""
     cfg = get_config(block_bits)
     _validate_block_inputs(ciphertext, master_key, iv, cfg, num_rounds)
-    round_subkeys = derive_round_subkeys(master_key, num_rounds, block_bits)
+    round_subkeys = _cached_round_subkeys(master_key, num_rounds, block_bits)
     out_l, l1, l2, r1, r2, out_r = split_block_6_parts(ciphertext, cfg)
 
     for r in range(num_rounds - 1, -1, -1):

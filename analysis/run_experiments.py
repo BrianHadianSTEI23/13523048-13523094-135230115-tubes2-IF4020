@@ -92,7 +92,7 @@ def run_experiments(block_bits=64, rounds=16, trials=16, sample_bytes=512, seed=
             "histogram_key_hex": histogram_key.hex(),
             "histogram_iv_or_counter_hex": histogram_iv.hex(),
             "plaintext_entropy_bits_per_byte": calculate_shannon_entropy(plaintext_sample)["entropy"],
-            "avalanche_description": "One block of plaintext per trial; flip one plaintext bit or one master-key bit while holding all other inputs and IV fixed. Compare the entire ciphertext, including PKCS#7 padding blocks in ECB/CBC.",
+            "avalanche_description": "One block of plaintext per trial; flip one plaintext bit or one master-key bit while holding all other inputs and IV fixed. Compare only the ciphertext bytes aligned with the plaintext block; the PKCS#7 padding block appended by ECB/CBC is excluded because it does not depend on the flipped plaintext bit and would dilute the percentage (CBC chaining into that block is therefore not measured).",
             "interpretation": "Avalanche and entropy are measurements, not security proofs. A one-bit plaintext change in CFB/OFB/CTR changes one ciphertext bit for this one-block experiment by mode construction.",
         },
         "modes": {},
@@ -105,9 +105,12 @@ def run_experiments(block_bits=64, rounds=16, trials=16, sample_bytes=512, seed=
         key_distances = []
         ciphertext_bits = None
         for trial_index, (plaintext, key, iv, plaintext_bit, key_bit) in enumerate(cases):
-            baseline = _encrypt(mode, plaintext, key, iv, block_bits, rounds)
-            changed_plaintext = _encrypt(mode, _flip_bit(plaintext, plaintext_bit), key, iv, block_bits, rounds)
-            changed_key = _encrypt(mode, plaintext, _flip_bit(key, key_bit), iv, block_bits, rounds)
+            # Compare only the bytes that correspond to the plaintext. ECB/CBC append a
+            # PKCS#7 padding block that would otherwise dilute the percentage.
+            window = len(plaintext)
+            baseline = _encrypt(mode, plaintext, key, iv, block_bits, rounds)[:window]
+            changed_plaintext = _encrypt(mode, _flip_bit(plaintext, plaintext_bit), key, iv, block_bits, rounds)[:window]
+            changed_key = _encrypt(mode, plaintext, _flip_bit(key, key_bit), iv, block_bits, rounds)[:window]
             if len(baseline) != len(changed_plaintext) or len(baseline) != len(changed_key):
                 raise AssertionError("avalanche ciphertext lengths differ")
             ciphertext_bits = len(baseline) * 8
