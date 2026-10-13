@@ -118,21 +118,3 @@ tests/        unit, boundary, construction, dan integration tests
 docs/         diagram rancangan cipher dan key schedule
 main.py       entry point CLI
 ```
-
-## Keterbatasan keamanan
-
-- Rancangan belum melalui kriptanalisis publik.
-- ECB membocorkan pola blok berulang.
-- Penggunaan ulang IV/counter berbahaya, terutama untuk OFB/CTR. 
-- Tidak ada MAC atau authenticated encryption.
-- Padding error bukan mekanisme autentikasi.
-- Hasil avalanche, entropi, dan histogram hanya diagnostik sampel; bukan bukti
-  keamanan. Key schedule dan cipher belum diaudit secara independen.
-
-## Design Simplification
-
-Versi aktif menghapus Feistel kedua, kompresi kedua, `ShiftRows` lokal,
-dan rotasi luar satu bit setelah pengukuran awal yang tidak menunjukkan manfaat
-difusi konsisten pada sampel tersebut. Struktur enam cabang dan difusi global
-tetap dipakai. Default 16 putaran adalah pilihan rancangan, bukan jaminan
-keamanan; hasil eksperimen final masih perlu dijalankan dan dilaporkan.
