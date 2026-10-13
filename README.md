@@ -82,9 +82,7 @@ ukuran blok. CFB/OFB/CTR memproses blok terakhir parsial tanpa padding.
 
 ## Dokumentasi API
 
-Dokumentasi API publik adalah bonus dan belum tersedia pada versi repositori ini.
-Antarmuka yang dapat digunakan sekarang adalah CLI di atas serta fungsi Python
-di `src/cipher_core.py` dan `src/modes.py`.
+[Dokumentasi API OATSIDE](https://brianhadianstei23.github.io/13523048-13523094-135230115-tubes2-IF4020/) menjelaskan fungsi cipher blok, mode operasi, dan penggunaan program melalui terminal maupun API Python lokal. Halaman tersebut merupakan dokumentasi, bukan layanan API HTTP.
 
 ## Menjalankan test
 
@@ -125,7 +123,7 @@ main.py       entry point CLI
 
 - Rancangan belum melalui kriptanalisis publik.
 - ECB membocorkan pola blok berulang.
-- Penggunaan ulang IV/counter berbahaya, terutama untuk OFB/CTR.
+- Penggunaan ulang IV/counter berbahaya, terutama untuk OFB/CTR. 
 - Tidak ada MAC atau authenticated encryption.
 - Padding error bukan mekanisme autentikasi.
 - Hasil avalanche, entropi, dan histogram hanya diagnostik sampel; bukan bukti
