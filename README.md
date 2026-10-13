@@ -41,7 +41,6 @@ Pada pemanggilan API `src.modes` secara langsung, gunakan IV/counter eksplisit.
 API berkas dan CLI mewajibkannya untuk mode selain ECB; IV/counter tidak dibuat
 otomatis karena tidak disimpan bersama ciphertext.
 
-Jangan menggunakan ulang pasangan key-IV atau key-counter untuk data berbeda.
 
 ## Penggunaan CLI
 
@@ -82,19 +81,13 @@ ukuran blok. CFB/OFB/CTR memproses blok terakhir parsial tanpa padding.
 
 ## Dokumentasi API
 
-[Dokumentasi API OATSIDE](https://brianhadianstei23.github.io/13523048-13523094-135230115-tubes2-IF4020/) menjelaskan fungsi cipher blok, mode operasi, dan penggunaan program melalui terminal maupun API Python lokal. Halaman tersebut merupakan dokumentasi, bukan layanan API HTTP.
+[Dokumentasi API OATSIDE](https://brianhadianstei23.github.io/13523048-13523094-135230115-tubes2-IF4020/) menjelaskan fungsi cipher blok, mode operasi, dan penggunaan program melalui terminal maupun API Python lokal. Halaman tersebut merupakan dokumentasi, bukan sebuah layanan API HTTP.
 
 ## Menjalankan test
 
 ```shell
 python -m unittest discover -s tests -v
 ```
-
-Suite mencakup invers round dan block acak pada semua ukuran, key schedule,
-file biner pada lima mode, padding, CLI, panjang IV/counter, wrap CTR,
-serta batas panjang berkas pada semua ukuran blok.
-Jalankan kembali uji dan vektor setelah setiap perubahan core: ciphertext
-prototipe lama tidak kompatibel dengan rancangan saat ini.
 
 ## Eksperimen keamanan
 
@@ -118,21 +111,3 @@ tests/        unit, boundary, construction, dan integration tests
 docs/         diagram rancangan cipher dan key schedule
 main.py       entry point CLI
 ```
-
-## Keterbatasan keamanan
-
-- Rancangan belum melalui kriptanalisis publik.
-- ECB membocorkan pola blok berulang.
-- Penggunaan ulang IV/counter berbahaya, terutama untuk OFB/CTR. 
-- Tidak ada MAC atau authenticated encryption.
-- Padding error bukan mekanisme autentikasi.
-- Hasil avalanche, entropi, dan histogram hanya diagnostik sampel; bukan bukti
-  keamanan. Key schedule dan cipher belum diaudit secara independen.
-
-## Design Simplification
-
-Versi aktif menghapus Feistel kedua, kompresi kedua, `ShiftRows` lokal,
-dan rotasi luar satu bit setelah pengukuran awal yang tidak menunjukkan manfaat
-difusi konsisten pada sampel tersebut. Struktur enam cabang dan difusi global
-tetap dipakai. Default 16 putaran adalah pilihan rancangan, bukan jaminan
-keamanan; hasil eksperimen final masih perlu dijalankan dan dilaporkan.
