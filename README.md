@@ -41,7 +41,6 @@ Pada pemanggilan API `src.modes` secara langsung, gunakan IV/counter eksplisit.
 API berkas dan CLI mewajibkannya untuk mode selain ECB; IV/counter tidak dibuat
 otomatis karena tidak disimpan bersama ciphertext.
 
-Jangan menggunakan ulang pasangan key-IV atau key-counter untuk data berbeda.
 
 ## Penggunaan CLI
 
@@ -82,19 +81,13 @@ ukuran blok. CFB/OFB/CTR memproses blok terakhir parsial tanpa padding.
 
 ## Dokumentasi API
 
-[Dokumentasi API OATSIDE](https://brianhadianstei23.github.io/13523048-13523094-135230115-tubes2-IF4020/) menjelaskan fungsi cipher blok, mode operasi, dan penggunaan program melalui terminal maupun API Python lokal. Halaman tersebut merupakan dokumentasi, bukan layanan API HTTP.
+[Dokumentasi API OATSIDE](https://brianhadianstei23.github.io/13523048-13523094-135230115-tubes2-IF4020/) menjelaskan fungsi cipher blok, mode operasi, dan penggunaan program melalui terminal maupun API Python lokal. Halaman tersebut merupakan dokumentasi, bukan sebuah layanan API HTTP.
 
 ## Menjalankan test
 
 ```shell
 python -m unittest discover -s tests -v
 ```
-
-Suite mencakup invers round dan block acak pada semua ukuran, key schedule,
-file biner pada lima mode, padding, CLI, panjang IV/counter, wrap CTR,
-serta batas panjang berkas pada semua ukuran blok.
-Jalankan kembali uji dan vektor setelah setiap perubahan core: ciphertext
-prototipe lama tidak kompatibel dengan rancangan saat ini.
 
 ## Eksperimen keamanan
 
