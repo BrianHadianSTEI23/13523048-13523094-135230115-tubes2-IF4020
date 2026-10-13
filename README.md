@@ -123,7 +123,7 @@ main.py       entry point CLI
 
 - Rancangan belum melalui kriptanalisis publik.
 - ECB membocorkan pola blok berulang.
-- Penggunaan ulang IV/counter berbahaya, terutama untuk OFB/CTR.
+- Penggunaan ulang IV/counter berbahaya, terutama untuk OFB/CTR. 
 - Tidak ada MAC atau authenticated encryption.
 - Padding error bukan mekanisme autentikasi.
 - Hasil avalanche, entropi, dan histogram hanya diagnostik sampel; bukan bukti
