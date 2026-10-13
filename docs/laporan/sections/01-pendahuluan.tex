@@ -1,6 +1,46 @@
 \section{Pendahuluan}
 \subsection{Latar Belakang}
+\textit{Block cipher} merupakan algoritma enkripsi simetris yang mengamankan data dengan membagi pesan ke dalam blok-blok bit berukuran 
+tetap dan mengolahnya melalui beberapa putaran transformasi. Untuk menjamin keamanannya, rancangan algoritma harus memenuhi prinsip 
+confusion dan diffusion menggunakan operasi substitusi serta transposisi. Pada tugas ini, dilakukan perancangan dan implementasi 
+algoritma block cipher baru beserta pengujian performa keamanannya yang meliputi avalanche effect, entropi, dan distribusi histogram 
+dalam berbagai mode operasi enkripsi.
+
 \subsection{Block Cipher Kontemporer}
+Ada beberapa algoritma block cipher yang telah dikembangkan dan digunakan secara luas dan beberapa di antaranya sudah dibahas dalam 
+kuliah IF4020 Kriptografi. Beberapa contoh algoritma \textit{block cipher} yang populer ini adalah DES, 3DES, AES, dan Blowfish. 
+
+DES (Data Encryption Standard) merupakan algoritma block cipher yang dikembangkan oleh IBM pada tahun 1970-an dan diadopsi sebagai 
+standar enkripsi oleh pemerintah Amerika Serikat pada tahun 1977. DES menggunakan blok berukuran 64-bit dan kunci berukuran 56-bit. 
+Meskipun DES pernah menjadi standar enkripsi yang populer, algoritma ini kini dianggap tidak aman karena panjang kunci yang relatif 
+pendek dan kerentanannya terhadap serangan brute-force. Untuk mengatasi kelemahan ini, 3DES (Triple DES) dikembangkan dengan menerapkan 
+algoritma DES tiga kali secara berurutan, sehingga meningkatkan keamanan dengan panjang kunci efektif 112-bit atau 168-bit. Namun, 3DES 
+juga dianggap lambat dan tidak efisien dibandingkan algoritma modern lainnya.
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\textwidth]{images/DES.png}
+    \caption{Struktur DES}
+    \label{fig:des}
+\end{figure}
+
+Adapun AES (Advanced Encryption Standard) adalah algoritma block cipher yang dikembangkan untuk menggantikan DES dan 3DES. AES 
+menggunakan panjang kunci yang fleksibel yakni 128-bit, 192-bit, atau 256-bit, dan blok berukuran 128-bit. AES dikenal karena keamanannya 
+yang tinggi dan efisiensinya dalam implementasi perangkat keras maupun perangkat lunak. 
+
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.5\textwidth]{images/AES.png}
+    \caption{Struktur AES}
+    \label{fig:aes}
+\end{figure}
+
+Terakhir, Blowfish adalah algoritma block cipher 
+yang dirancang oleh Bruce Schneier pada tahun 1993. Blowfish menggunakan panjang kunci variabel hingga 448-bit dan blok berukuran 64-bit. 
+Algoritma ini dikenal karena kecepatannya dan keamanan yang baik, meskipun kini telah digantikan oleh algoritma yang lebih modern seperti 
+AES.
+
 \subsection{Gagasan Utama}
+Ide utama OATSIDE adalah menggabungkan dua pendekatan klasik, yaitu \textbf{jaringan Feistel} seperti pada DES dan lapisan \textbf{substitusi-permutasi} seperti pada AES, ke dalam satu putaran. Kami memecah blok menjadi enam cabang, empat di antaranya diproses dengan Feistel dan dua sisanya diproses dengan substitusi-permutasi. Kami juga menambahkan mekanisme seperti kompresi dan difusi global karena cabang dalam dan luar belum saling memengaruhi dalam satu putaran. Akibatnya, perubahan satu bit pada blok input tidak akan menyebar ke seluruh blok setelah satu putaran. Mekanisme ini juga menambah kompleksitas dan keamanan algoritma. 
 
 \pagebreak

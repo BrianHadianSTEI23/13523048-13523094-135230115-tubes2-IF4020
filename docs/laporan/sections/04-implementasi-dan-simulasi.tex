@@ -1,6 +1,98 @@
 \section{Implementasi dan Simulasi}
-\subsection{Struktur dan Antarmuka Program}
+Implementasi utama OATSIDE ditulis dalam bahasa Python 3.10, tetapi putaran kompresi SHA-256 Customised juga diimplementasikan dalam bahasa C untuk meningkatkan performa\footnote{Awalnya kami menggunakan sepenuhnya pakaii Python, tetapi \textit{overhead} interpreter Python membuat fungsi ini menjadi bagian paling lambat dari cipher. Versi C terdapat pada \texttt{src/native/oatside\_sha.c} dan menghasilkan keluaran yang identik dengan versi Python.}. Pustaka hasil kompilasi C bersifat opsional. Apabila pustaka tersebut tidak tersedia, program secara otomatis menggunakan implementasi Python. Seluruh cipher, mode operasi, dan \textit{padding} diimplementasikan sendiri tanpa pustaka kriptografi pihak ketiga.
+
+\subsection{Struktur}
+Struktur direktori proyek dapat dilihat pada Tabel \ref{tab:struktur_proyek}.
+
+\begin{table}[H]
+    \centering
+    \small
+    \caption{Struktur direktori proyek}
+    \label{tab:struktur_proyek}
+    \begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X@{}}
+        \toprule
+        \textbf{Direktori/Berkas} & \textbf{Isi} \\
+        \midrule
+        \texttt{main.py} & Titik masuk program (CLI). \\
+        \texttt{src/} & Implementasi OATSIDE: inti cipher (\texttt{cipher\_core.py}), S-box dan SHA-256 Customised (\texttt{sbox\_spn.py}), penjadwalan kunci (\texttt{keygen.py}), operasi bit (\texttt{bit\_utils.py}), mode operasi dan \textit{padding} (\texttt{modes.py}), CLI (\texttt{cli.py}), serta fungsi analisis (\texttt{analysis.py}). \\
+        \texttt{src/native/} & Kode sumber C untuk putaran kompresi SHA-256 (lebih cepet dri Python). \\
+        \texttt{config/} & Parameter lebar cabang untuk setiap ukuran blok. \\
+        \texttt{analysis/} & Skrip eksperimen \textit{avalanche effect}, entropi, dan histogram. \\
+        \texttt{tests/} & Pengujian unit, batas ukuran data, konstruksi mode, dan integrasi CLI. \\
+        \texttt{docs/} & Diagram rancangan, tabel S-box, dokumentasi API, dan laporan. \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+\subsection{Antarmuka Program}
+
+\begin{table}[H]
+    \centering
+    \small
+    \caption{Parameter CLI}
+    \label{tab:parameter_cli}
+    \begin{tabularx}{\textwidth}{@{}l >{\raggedright\arraybackslash}X@{}}
+        \toprule
+        \textbf{Parameter} & \textbf{Keterangan} \\
+        \midrule
+        \texttt{-i}, \texttt{--input} & Path berkas masukan \\
+        \texttt{-o}, \texttt{--output} & Path berkas keluaran; harus berbeda dari berkas masukan \\
+        \texttt{-k}, \texttt{--key} & Kunci utama dalam heksadesimal sepanjang ukuran blok (16 digit untuk blok 64 bit) \\
+        \texttt{-m}, \texttt{--mode} & ECB, CBC, CFB, OFB, atau CTR (bawaan: CBC) \\
+        \texttt{-b}, \texttt{--block-bits} & Ukuran blok 64, 96, 128, atau 192 bit (bawaan: 64) \\
+        \texttt{--iv} & IV untuk CBC, CFB, dan OFB, atau \textit{counter} awal untuk CTR, dalam heksadesimal sepanjang satu blok \\
+        \texttt{-r}, \texttt{--rounds} & Jumlah putaran (bawaan: 16) \\
+        \bottomrule
+    \end{tabularx}
+\end{table}
+
+Contoh enkripsi dan dekripsi berkas dengan mode CBC begini:
+\begin{lstlisting}[basicstyle=\ttfamily\small,breaklines=true]
+python main.py encrypt -i image.png -o image.enc -k 0x1234567890ABCDEF -m CBC --iv 0x0011223344556677
+python main.py decrypt -i image.enc -o image.dec.png -k 0x1234567890ABCDEF -m CBC --iv 0x0011223344556677
+\end{lstlisting}
+
 \subsection{Hasil Uji Coba}
+Uji coba dilakukan melalui CLI pada Linux (kernel 6.12) dengan Python 3.13 dan pustaka C yang dikompilasi menggunakan GCC 14.2. Kunci yang digunakan adalah \texttt{0x1234567890ABCDEF}, IV/\textit{counter} adalah \texttt{0x0011223344556677}, ukuran blok 64 bit, dan 16 putaran. Setiap berkas dienkripsi lalu didekripsi dengan kelima mode, kemudian nilai SHA-256 berkas hasil dekripsi dibandingkan dengan berkas asli. Hasilnya ditunjukkan pada Tabel \ref{tab:hasil_uji}.
+
+\begin{table}[H]
+    \centering
+    \small
+    \caption{Hasil uji coba enkripsi dan dekripsi berkas (blok 64 bit)}
+    \label{tab:hasil_uji}
+    \begin{tabular}{@{}lrrrl@{}}
+        \toprule
+        \textbf{Berkas} & \textbf{Plainteks} & \textbf{Cipherteks} & \textbf{Cipherteks} & \textbf{SHA-256 asli = hasil} \\
+         & \textbf{(byte)} & \textbf{ECB/CBC} & \textbf{CFB/OFB/CTR} & \textbf{dekripsi (16 digit awal)} \\
+        \midrule
+        Teks (\texttt{.txt}) & 47 & 48 & 47 & \texttt{74cc52e71fb3a81a} \\
+        Berkas kosong & 0 & 8 & 0 & \texttt{e3b0c44298fc1c14} \\
+        Biner 1 byte & 1 & 8 & 1 & \texttt{559aead08264d579} \\
+        Biner 8 byte & 8 & 16 & 8 & \texttt{6c03f3ef0ba21f4b} \\
+        Byte \texttt{00}--\texttt{FF} berulang & 1.224 & 1.232 & 1.224 & \texttt{7c94ffe7ba39666b} \\
+        Arsip ZIP & 1.108 & 1.112 & 1.108 & \texttt{ec7fdf0c908029c4} \\
+        Potongan PDF & 30.000 & 30.008 & 30.000 & \texttt{890f34e9a9bfbdfa} \\
+        Gambar PNG & 139.719 & 139.720 & 139.719 & \texttt{b8132e40693cc865} \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+Seluruh 40 kombinasi berkas dan mode menghasilkan berkas dekripsi yang identik byte demi byte dengan berkas asli. Berkas \textit{byte} \texttt{00}--\texttt{FF} berisi seluruh nilai byte dan deretan panjang byte \texttt{00} serta \texttt{FF} untuk memastikan program tidak mengasumsikan teks UTF-8. Pengujian yang sama untuk berkas ZIP dengan ukuran blok 96, 128, dan 192 bit pada kelima mode juga menghasilkan berkas yang identik. Selain itu, rangkaian pengujian otomatis (\texttt{python -m unittest discover -s tests}) yang berisi 42 kasus uji, termasuk uji konstruksi mode yang dihitung terpisah dari implementasi mode, lulus seluruhnya.
+
+Waktu enkripsi melalui CLI untuk gambar PNG berukuran 139.719 byte adalah sekitar 11,5--12,2 detik pada setiap mode, atau sekitar 11--12 KB/s. Waktu dekripsi hampir sama. Kecepatan ini dipengaruhi oleh rancangan OATSIDE yang memanggil 64 kompresi SHA-256 untuk setiap blok.
+
+\subsection{Verifikasi Integritas}
+Integritas pada program ini diartikan sebagai jaminan bahwa hasil dekripsi identik dengan data asli apabila kunci, mode, dan IV yang digunakan sama. Ini dibuktikan melalui perbandingan nilai SHA-256 pada Tabel \ref{tab:hasil_uji}. Ada bberapa kondisi kesalahan juga diuji sebagai berikut.
+\begin{itemize}[noitemsep]
+    \item Dekripsi ECB dengan kunci yang salah satu bitnya berbeda ditolak dengan pesan \textit{padding} PKCS\#7 tidak valid.
+    \item Perubahan satu bit pada byte terakhir cipherteks CBC ditolak dengan pesan \textit{padding} tidak valid.
+    \item Cipherteks CBC yang panjangnya bukan kelipatan ukuran blok ditolak sebelum dekripsi dilakukan.
+    \item Perubahan satu bit pada cipherteks CTR tetap didekripsi tanpa pesan kesalahan, dan menghasilkan satu bit yang berbeda pada posisi yang sama di plainteks.
+\end{itemize}
+
+Nah, kasus terakhir menunjukkan bahwa program tidak menyediakan autentikasi cipherteks. Penolakan karena \textit{padding} tidak valid hanya terjadi secara kebetulan pada ECB dan CBC, sehingga tidak dapat dianggap sebagai mekanisme pendeteksian manipulasi. 
+
 \subsection{Analisis}
+Hasil uji coba menunjukkan bahwa kelima mode operasi berjalan dengan benar untuk file teks dan biner, termasuk file kosong dan file yang ukurannya tepat di batas blok. Perbedaan panjang cipherteks sesuai dengan rancangan, yaitu ECB dan CBC menambahkan 1 sampai 8 byte \textit{padding}, sedangkan CFB, OFB, dan CTR menghasilkan cipherteks dengan panjang yang sama dengan plainteks. Mode CFB, OFB, dan CTR lebih cocok untuk data yang panjangnya tidak boleh berubah, sedangkan ECB tidak disarankan untuk data dengan pola berulang karena blok plainteks yang sama menghasilkan blok cipherteks yang sama. Keterbatasan utama program adalah kecepatan, yaitu sekitar 11--12 KB/s, sehingga program lebih sesuai untuk file berukuran kecil hingga sedang.
 
 \pagebreak

@@ -1,0 +1,147 @@
+{
+  "method": {
+    "block_bits": 64,
+    "rounds": 16,
+    "trials_per_mode": 64,
+    "seed": 4020,
+    "sample_bytes": 512,
+    "sample_description": "bytes 00..07 repeated, truncated to sample_bytes",
+    "histogram_key_hex": "34b334acc96f4286",
+    "histogram_iv_or_counter_hex": "e6c375b580fd1337",
+    "plaintext_entropy_bits_per_byte": 3.0,
+    "avalanche_description": "One block of plaintext per trial; flip one plaintext bit or one master-key bit while holding all other inputs and IV fixed. Compare only the ciphertext bytes aligned with the plaintext block; the PKCS#7 padding block appended by ECB/CBC is excluded because it does not depend on the flipped plaintext bit and would dilute the percentage (CBC chaining into that block is therefore not measured).",
+    "interpretation": "Avalanche and entropy are measurements, not security proofs. A one-bit plaintext change in CFB/OFB/CTR changes one ciphertext bit for this one-block experiment by mode construction."
+  },
+  "modes": {
+    "ECB": {
+      "plaintext_flip": {
+        "trials": 64,
+        "ciphertext_bits": 64,
+        "mean_changed_bits": 31.8125,
+        "min_changed_bits": 22,
+        "max_changed_bits": 40,
+        "mean_percent": 49.70703125,
+        "min_percent": 34.375,
+        "max_percent": 62.5,
+        "stddev_percent": 6.605346317611661
+      },
+      "key_flip": {
+        "trials": 64,
+        "ciphertext_bits": 64,
+        "mean_changed_bits": 32.5,
+        "min_changed_bits": 24,
+        "max_changed_bits": 40,
+        "mean_percent": 50.78125,
+        "min_percent": 37.5,
+        "max_percent": 62.5,
+        "stddev_percent": 6.2986388658582415
+      },
+      "ciphertext_entropy_bits_per_byte": 3.1146755053361472,
+      "ciphertext_bytes": 520
+    },
+    "CBC": {
+      "plaintext_flip": {
+        "trials": 64,
+        "ciphertext_bits": 64,
+        "mean_changed_bits": 31.875,
+        "min_changed_bits": 20,
+        "max_changed_bits": 40,
+        "mean_percent": 49.8046875,
+        "min_percent": 31.25,
+        "max_percent": 62.5,
+        "stddev_percent": 6.521799944165625
+      },
+      "key_flip": {
+        "trials": 64,
+        "ciphertext_bits": 64,
+        "mean_changed_bits": 31.609375,
+        "min_changed_bits": 22,
+        "max_changed_bits": 40,
+        "mean_percent": 49.3896484375,
+        "min_percent": 34.375,
+        "max_percent": 62.5,
+        "stddev_percent": 5.705112476761309
+      },
+      "ciphertext_entropy_bits_per_byte": 7.595255568405919,
+      "ciphertext_bytes": 520
+    },
+    "CFB": {
+      "plaintext_flip": {
+        "trials": 64,
+        "ciphertext_bits": 64,
+        "mean_changed_bits": 1,
+        "min_changed_bits": 1,
+        "max_changed_bits": 1,
+        "mean_percent": 1.5625,
+        "min_percent": 1.5625,
+        "max_percent": 1.5625,
+        "stddev_percent": 0.0
+      },
+      "key_flip": {
+        "trials": 64,
+        "ciphertext_bits": 64,
+        "mean_changed_bits": 31.8125,
+        "min_changed_bits": 25,
+        "max_changed_bits": 42,
+        "mean_percent": 49.70703125,
+        "min_percent": 39.0625,
+        "max_percent": 65.625,
+        "stddev_percent": 6.156992291464107
+      },
+      "ciphertext_entropy_bits_per_byte": 7.599995491462791,
+      "ciphertext_bytes": 512
+    },
+    "OFB": {
+      "plaintext_flip": {
+        "trials": 64,
+        "ciphertext_bits": 64,
+        "mean_changed_bits": 1,
+        "min_changed_bits": 1,
+        "max_changed_bits": 1,
+        "mean_percent": 1.5625,
+        "min_percent": 1.5625,
+        "max_percent": 1.5625,
+        "stddev_percent": 0.0
+      },
+      "key_flip": {
+        "trials": 64,
+        "ciphertext_bits": 64,
+        "mean_changed_bits": 31.8125,
+        "min_changed_bits": 25,
+        "max_changed_bits": 42,
+        "mean_percent": 49.70703125,
+        "min_percent": 39.0625,
+        "max_percent": 65.625,
+        "stddev_percent": 6.156992291464107
+      },
+      "ciphertext_entropy_bits_per_byte": 7.610909505210724,
+      "ciphertext_bytes": 512
+    },
+    "CTR": {
+      "plaintext_flip": {
+        "trials": 64,
+        "ciphertext_bits": 64,
+        "mean_changed_bits": 1,
+        "min_changed_bits": 1,
+        "max_changed_bits": 1,
+        "mean_percent": 1.5625,
+        "min_percent": 1.5625,
+        "max_percent": 1.5625,
+        "stddev_percent": 0.0
+      },
+      "key_flip": {
+        "trials": 64,
+        "ciphertext_bits": 64,
+        "mean_changed_bits": 31.8125,
+        "min_changed_bits": 25,
+        "max_changed_bits": 42,
+        "mean_percent": 49.70703125,
+        "min_percent": 39.0625,
+        "max_percent": 65.625,
+        "stddev_percent": 6.156992291464107
+      },
+      "ciphertext_entropy_bits_per_byte": 7.645037276596815,
+      "ciphertext_bytes": 512
+    }
+  }
+}
