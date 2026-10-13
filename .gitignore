@@ -21,7 +21,6 @@ src/native/*.obj
 *.snm
 *.vrb
 
-*.pdf
 *.dvi
 *.ps
 
