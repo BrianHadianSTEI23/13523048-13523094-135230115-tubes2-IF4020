@@ -14,7 +14,6 @@ from src.sbox_spn import (
 from src.keygen import _cached_round_subkeys
 
 def split_block_6_parts(block_val: int, cfg: BlockConfig) -> Tuple[int, int, int, int, int, int]:
-    """Slice a B-bit block into the six configured branches."""
     b = cfg.block_bits
     out_l = slice_bits_msb(block_val, b, 0, cfg.outer_bits)
     offset = cfg.outer_bits
@@ -57,7 +56,6 @@ def _validate_block_inputs(value: int, master_key: int, iv: int, cfg: BlockConfi
         raise ValueError("num_rounds must be a positive integer")
 
 def feistel_left(l1: int, l2: int, cfg: BlockConfig, key2: int, key3: int) -> Tuple[int, int]:
-    """Invertible left-branch update using the keyed SHA-like function."""
     # Top custom SHA-256 with Key 3
     sha_out3 = custom_sha256(l2, cfg.l2_bits, key3, cfg.block_bits, cfg.l1_bits)
     l1_prime = (l1 + sha_out3) & ((1 << cfg.l1_bits) - 1)
@@ -69,7 +67,6 @@ def feistel_left(l1: int, l2: int, cfg: BlockConfig, key2: int, key3: int) -> Tu
     return l1_prime, l2_prime
 
 def inv_feistel_left(l1_prime: int, l2_prime: int, cfg: BlockConfig, key2: int, key3: int) -> Tuple[int, int]:
-    """Inverse of Left Feistel network step."""
     sha_out2 = custom_sha256(l1_prime, cfg.l1_bits, key2, cfg.block_bits, cfg.l2_bits)
     l2 = l2_prime ^ sha_out2
     
@@ -78,7 +75,6 @@ def inv_feistel_left(l1_prime: int, l2_prime: int, cfg: BlockConfig, key2: int, 
     return l1, l2
 
 def feistel_right(r1: int, r2: int, cfg: BlockConfig, key4: int, key5: int) -> Tuple[int, int]:
-    """Invertible right-branch update using the keyed SHA-like function."""
     # Top custom SHA-256 with Key 4
     sha_out4 = custom_sha256(r1, cfg.r1_bits, key4, cfg.block_bits, cfg.r2_bits)
     r2_prime = (r2 + sha_out4) & ((1 << cfg.r2_bits) - 1)
@@ -90,7 +86,6 @@ def feistel_right(r1: int, r2: int, cfg: BlockConfig, key4: int, key5: int) -> T
     return r1_prime, r2_prime
 
 def inv_feistel_right(r1_prime: int, r2_prime: int, cfg: BlockConfig, key4: int, key5: int) -> Tuple[int, int]:
-    """Inverse of Right Feistel network step."""
     sha_out5 = custom_sha256(r2_prime, cfg.r2_bits, key5, cfg.block_bits, cfg.r1_bits)
     r1 = r1_prime ^ sha_out5
     
@@ -102,7 +97,6 @@ def encrypt_round(
     out_l: int, l1: int, l2: int, r1: int, r2: int, out_r: int,
     subkeys: Dict[str, int], cfg: BlockConfig
 ) -> Tuple[int, int, int, int, int, int]:
-    """One Feistel stage, one non-destructive compression, then outer S-box/key XOR."""
     k1, k2, k3, k4, k5 = subkeys['Key1'], subkeys['Key2'], subkeys['Key3'], subkeys['Key4'], subkeys['Key5']
 
     l1_p, l2_p = feistel_left(l1, l2, cfg, k2, k3)
@@ -129,7 +123,6 @@ def decrypt_round(
     out_l: int, l1: int, l2: int, r1: int, r2: int, out_r: int,
     subkeys: Dict[str, int], cfg: BlockConfig
 ) -> Tuple[int, int, int, int, int, int]:
-    """Invert ``encrypt_round`` before undoing the global diffusion layer."""
     k1, k2, k3, k4, k5 = (
         subkeys['Key1'], subkeys['Key2'], subkeys['Key3'],
         subkeys['Key4'], subkeys['Key5'],
@@ -151,12 +144,10 @@ def decrypt_round(
     return out_l_prev, l1_prev, l2_prev, r1_prev, r2_prev, out_r_prev
 
 def encrypt_block(plaintext: int, master_key: int, iv: int, block_bits: int, num_rounds: int = 16) -> int:
-    """Encrypt one fixed-width block with the oatside round function."""
     cfg = get_config(block_bits)
     _validate_block_inputs(plaintext, master_key, iv, cfg, num_rounds)
     round_subkeys = _cached_round_subkeys(master_key, num_rounds, block_bits)
     
-    # Legacy core argument iv acts as input whitening; modes pass zero here.
     initial_val = plaintext ^ iv
     out_l, l1, l2, r1, r2, out_r = split_block_6_parts(initial_val, cfg)
     
@@ -171,7 +162,6 @@ def encrypt_block(plaintext: int, master_key: int, iv: int, block_bits: int, num
     return join_block_6_parts(out_l, l1, l2, r1, r2, out_r, cfg)
 
 def decrypt_block(ciphertext: int, master_key: int, iv: int, block_bits: int, num_rounds: int = 16) -> int:
-    """Decrypt a block by reversing global diffusion and each local round."""
     cfg = get_config(block_bits)
     _validate_block_inputs(ciphertext, master_key, iv, cfg, num_rounds)
     round_subkeys = _cached_round_subkeys(master_key, num_rounds, block_bits)

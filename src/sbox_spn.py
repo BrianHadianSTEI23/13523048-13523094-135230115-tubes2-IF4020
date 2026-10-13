@@ -38,7 +38,6 @@ def _generate_sbox() -> Tuple[List[int], List[int]]:
 S_BOX, INV_S_BOX = _generate_sbox()
 
 def sub_bytes(val: int, num_bits: int, inverse: bool = False) -> int:
-    """Byte-wise table lookup using the oatside S-box or its inverse."""
     table = INV_S_BOX if inverse else S_BOX
     
     full_bytes = num_bits // 8
@@ -59,14 +58,9 @@ def sub_bytes(val: int, num_bits: int, inverse: bool = False) -> int:
 
 
 def add_round_key(val: int, key: int) -> int:
-    """Bitwise XOR with round key."""
     return val ^ key
 
 def sbox_compress(val: int, in_bits: int, out_bits: int) -> int:
-    """
-    S-box compression transforming in_bits into out_bits (in_bits > out_bits).
-    Uses non-linear byte folding and bit extraction.
-    """
     sub_val = sub_bytes(val, in_bits)
     mask_out = (1 << out_bits) - 1
     res = 0
@@ -151,7 +145,6 @@ def custom_sha256(
         return (int.from_bytes(out.raw, "big") >> (256 - output_bits)) & ((1 << output_bits) - 1)
 
     # 3. Message schedule W_0 ... W_15 expanded to W_63
-    # Rotations are written inline; this function dominates the cipher's runtime.
     m = 0xFFFFFFFF
     w_sched = list(struct.unpack(">16I", block)) + [0] * 48
     for t in range(16, 64):

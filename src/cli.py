@@ -6,7 +6,6 @@ from src.modes import encrypt_file, decrypt_file
 
 
 def parse_hex_or_int(val_str: str) -> int:
-    """Parses a hex string (0x...) or decimal integer string into an integer."""
     val_str = val_str.strip()
     if val_str.lower().startswith("0x"):
         return int(val_str, 16)
@@ -14,7 +13,6 @@ def parse_hex_or_int(val_str: str) -> int:
 
 
 def parse_hex_bytes(val_str: str, expected_len: int) -> bytes:
-    """Parses a hex string into a bytes object of required length."""
     val_str = val_str.strip()
     if val_str.lower().startswith("0x"):
         val_str = val_str[2:]

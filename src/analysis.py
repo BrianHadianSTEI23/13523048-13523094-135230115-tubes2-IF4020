@@ -5,7 +5,7 @@ from src.cipher_core import encrypt_block
 
 
 def count_bit_differences(val1: int, val2: int) -> int:
-    """Calculates the Hamming distance (number of differing bits) between two integers."""
+    # pake hamming distance
     return bin(val1 ^ val2).count("1")
 
 
@@ -17,10 +17,8 @@ def analyze_avalanche_plaintext(
     block_bits: int = 64,
     num_rounds: int = 16,
 ) -> Dict[str, Any]:
-    """Flips 1 bit in plaintext and measures the bit changes in ciphertext.
-
-    Calculates percentage using: (delta_bits / block_bits) * 100%
-    """
+    # Flip 1 bit di plaintext trus ukur perubahan bit di cipherteks
+    # (delta_bits / block_bits) * 100%
     flipped_plaintext = plaintext ^ (1 << bit_index)
 
     c1 = encrypt_block(
@@ -58,10 +56,8 @@ def analyze_avalanche_key(
     block_bits: int = 64,
     num_rounds: int = 16,
 ) -> Dict[str, Any]:
-    """Flips 1 bit in key and measures the bit changes in ciphertext.
-
-    Calculates percentage using: (delta_bits / block_bits) * 100%
-    """
+    # Flip 1 bit di plaintext trus ukur perubahan bit di cipherteks
+    # (delta_bits / block_bits) * 100%
     flipped_key = key ^ (1 << bit_index)
 
     c1 = encrypt_block(
@@ -92,10 +88,8 @@ def analyze_avalanche_key(
 
 
 def calculate_shannon_entropy(data: bytes) -> Dict[str, float]:
-    """Calculates byte-level Shannon entropy: H(X) = -sum(P(x) * log2(P(x))).
-
-    Validates against the maximum theoretical upper bound of 8.0 bits/byte.
-    """
+    # Calculates byte-level Shannon entropy: H(X) = -sum(P(x) * log2(P(x))).
+    # bandingin sama batas 8.0 bits/byte
     if not data:
         return {"entropy": 0.0, "max_theoretical_entropy": 8.0, "ratio": 0.0}
 
@@ -118,17 +112,11 @@ def calculate_shannon_entropy(data: bytes) -> Dict[str, float]:
 
 
 def generate_histogram(data: bytes) -> Dict[int, int]:
-    """Generates a byte frequency distribution (histogram) across all values 0-255."""
     counts = Counter(data)
     return {b: counts.get(b, 0) for b in range(256)}
 
 
 def calculate_chi_square_uniformity(data: bytes) -> Dict[str, float]:
-    """Calculates Chi-Square statistic to test byte distribution uniformity.
-
-    Expected frequency per byte value: E = len(data) / 256
-    Chi-Square = sum((O_i - E)^2 / E)
-    """
     n = len(data)
     if n == 0:
         return {"chi_square": 0.0, "degrees_of_freedom": 255, "expected_frequency": 0.0}
